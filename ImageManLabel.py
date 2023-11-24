@@ -80,7 +80,7 @@ class ImageManLabel(QLabel):
                     
                     self.drawRect(bigRecTl, bigRectBr)
                     self.onRectCb(self.origImage[bigRecTl[1]:bigRectBr[1], bigRecTl[0]:bigRectBr[0]], bigRecTl, bigRectBr)
-                
+                    
         return super().eventFilter(obj, event)
     
     def setInhibit(self, inh):

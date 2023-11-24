@@ -1,22 +1,116 @@
 {
-    "imgSize": [
-        640,
-        480
-    ],
-    "imgRot": 0,
-    "camUrl": "http:/192.168.0.138:8081",
-    "flashBright": 50,
+    "cameraDesc": {
+        "imgSize": [
+            640,
+            480
+        ],
+        "imgRot": 0,
+        "camUrl": "http:/192.168.0.138:8081"
+    },
+    "meterReaderDesc": {
+        "flashBright": 50,
+        "flashTime": 5,
+        "timeBtwRounds": 30,
+        "initMeterVal": 5271.959,
+        "singleStepThresh": 1
+    },
     "mqttDesc": {
         "brokerUrl": "192.168.0.50",
         "brokerTcpPort": 1883,
         "user": "mqtt_user",
-        "pass": "1234"
+        "pass": "1234",
+        "topics": {
+            "flashOn": "gasmeter/flashlight/on",
+            "flashOff": "gasmeter/flashlight/off",
+            "meterReport": "gasmeter/report"
+        }
     },
     "imgMaskDesc": {
         "digitSize": [
             5,
             3
         ],
-        "digMasks": {}
+        "digMasks": {
+            "4": [
+                [
+                    44,
+                    337
+                ],
+                [
+                    79,
+                    394
+                ]
+            ],
+            "3": [
+                [
+                    97,
+                    338
+                ],
+                [
+                    132,
+                    395
+                ]
+            ],
+            "2": [
+                [
+                    149,
+                    337
+                ],
+                [
+                    186,
+                    397
+                ]
+            ],
+            "1": [
+                [
+                    204,
+                    342
+                ],
+                [
+                    240,
+                    398
+                ]
+            ],
+            "0": [
+                [
+                    260,
+                    341
+                ],
+                [
+                    290,
+                    401
+                ]
+            ],
+            "-1": [
+                [
+                    306,
+                    337
+                ],
+                [
+                    348,
+                    402
+                ]
+            ],
+            "-2": [
+                [
+                    363,
+                    339
+                ],
+                [
+                    404,
+                    405
+                ]
+            ],
+            "-3": [
+                [
+                    427,
+                    336
+                ],
+                [
+                    468,
+                    403
+                ]
+            ]
+        }
     }
 }

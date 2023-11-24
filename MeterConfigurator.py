@@ -3,15 +3,15 @@ import sys
 import cv2
 import tensorflow as tf
 import numpy as np
-import random
+
 from paho.mqtt import client as mqtt_client
 import json
-import yaml
 import codecs
 from pathlib import Path
 
 from ImageManLabel import ImageManLabel
 from ImageMaskPicker import MaskDigitItem
+from MqttHandler import MqttHandler
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QHBoxLayout, QPushButton, QWidget, QVBoxLayout, QApplication,  \
@@ -46,55 +46,54 @@ class MeterConfGUI(QMainWindow):
         
         self._setUpCnn()
         
-        self.mqttClient = self._connectMqtt()
+        self.mqttClient = MqttHandler(self.meterConf["mqttDesc"],
+                                      "gas_meter_configurator",
+                                      self.onMqttConnect,
+                                      self.onMqttDisConnect)
         
-    def _connectMqtt(self):
-        def on_connect(client, userdata, flags, rc):
-            if rc == 0:
-                self.statBar.showMessage("Connected to MQTT Broker!", 5000)
-            else:
-                self.statBar.showMessage("Failed to connect, return code %d\n", rc)
+
+    def onMqttConnect(self,rc):
+        if rc == 0:
+            self.statBar.showMessage("Connected to MQTT Broker!", 5000)
+        else:
+            self.statBar.showMessage("Failed to connect, return code %d\n", rc)
         
-        def on_disconnect(client, userdata, rc):
-            if rc != 0:
-                self.statBar.showMessage("Unexpected MQTT Broker disconnection! Trying to reconnect...", 5000)
-                self.mqttClient = self._connectMqtt()
+    def onMqttDisConnect(self):
+        self.statBar.showMessage("Unexpected MQTT Broker disconnection! Trying to reconnect...", 5000)
                 
-        client = mqtt_client.Client(f"meter_tool_mqtt_client{random.randint(1000,9999)}")
-        client.username_pw_set(self.meterConf["mqttDesc"]["user"], self.meterConf["mqttDesc"]["pass"])
-        client.on_connect = on_connect
-        client.on_disconnect = on_disconnect
-        client.connect(self.meterConf["mqttDesc"]["brokerUrl"], self.meterConf["mqttDesc"]["brokerTcpPort"])
-        return client
-    
+
     def _publishFLashMqtt(self):
         
         lampState = self.flashLigthBut.isChecked()
 
         if lampState:
-            topic="gasmeter/flashlight/on"
+            topic = self.meterConf["mqttDesc"]["topics"]["flashOn"]
             msg = json.dumps({"bright":self.flashBrightSli.value()/100})
-            self.flashLigthBut.setStyleSheet("background-color : yellow")      
+                
         else:
-            topic="gasmeter/flashlight/off"
+            topic = self.meterConf["mqttDesc"]["topics"]["flashOff"]
             self.flashLigthBut.setStyleSheet("background-color : lightgrey")
             msg = json.dumps({"bright":"0%"})
         
-        result = self.mqttClient.publish(topic, msg)
-        status = result[0]
-        if status == 0:
-            self.statBar.showMessage(f"Sent topic `{topic}`", 5000)
+        resSucc, resMsg  = self.mqttClient.publish2opic(topic, msg)
+
+        self.statBar.showMessage(resMsg, 5000)
+
+        if resSucc and lampState:
+            self.flashLigthBut.setStyleSheet("background-color : yellow")  
         else:
-            self.statBar.showMessage(f"Failed to send message to topic {topic}", 5000)
+            self.flashLigthBut.setChecked(False)
+            self.flashLigthBut.setStyleSheet("background-color : lightgrey")
 
     def _createMainArea(self):
         
         mainLay = QVBoxLayout()
+        imgLay = QHBoxLayout()
         configLay = QHBoxLayout()
         
         controlLay = QVBoxLayout()
         
-        maskLay = QVBoxLayout()
+        maskLay = QHBoxLayout()
         wholesMaskLay = QHBoxLayout()
         fractMaskLay = QHBoxLayout() 
         
@@ -116,15 +115,20 @@ class MeterConfGUI(QMainWindow):
         self.flashBrightSli.setMinimum(0)
         self.flashBrightSli.setMaximum(100)
         self.flashBrightSli.setSingleStep(1)
-        self.flashBrightSli.setValue(self.meterConf["flashBright"])
+        self.flashBrightSli.setValue(self.meterConf["meterReaderDesc"]["flashBright"])
         self.flashLigthBut.setText(f"Flashlight ({self.flashBrightSli.value()}%)")
         self.flashBrightSli.sliderReleased.connect(self.handleFlashBrightSLi)
-        
+
         controlLay.addWidget(captureBut)
         controlLay.addWidget(self.flashLigthBut)
         controlLay.addWidget(self.flashBrightSli)
         controlLay.addStretch()
         
+        imgLay.addStretch()
+        imgLay.addLayout(controlLay)
+        imgLay.addWidget(self.imageLabel)
+        imgLay.addStretch()
+
         cntWhoDig = self.meterConf["imgMaskDesc"]["digitSize"][0]
         cntFracDig = self.meterConf["imgMaskDesc"]["digitSize"][1]
         
@@ -143,10 +147,9 @@ class MeterConfGUI(QMainWindow):
         maskLay.addLayout(wholesMaskLay)
         maskLay.addLayout(fractMaskLay)
         
-        configLay.addLayout(controlLay)
         configLay.addLayout(maskLay)
             
-        mainLay.addWidget(self.imageLabel)
+        mainLay.addLayout(imgLay)
         mainLay.addLayout(configLay)
         
         self.mainWidget.setLayout(mainLay)
@@ -160,6 +163,7 @@ class MeterConfGUI(QMainWindow):
             else:
                 if atSave:
                     self.currMaskItem = None
+                    self.imageLabel.saveImage()
                     self.imageLabel.setInhibit(True)
                 else:
                     self.currMaskItem = itemPower
@@ -168,13 +172,11 @@ class MeterConfGUI(QMainWindow):
     
     def handleFlashBrightSLi(self):
         self.flashLigthBut.setText(f"Flashlight ({self.flashBrightSli.value()}%)")
+        self.meterConf["meterReaderDesc"]["flashBright"] = self.flashBrightSli.value()
         self._publishFLashMqtt()
         
     
     def onRectReceived(self, imgPart, tl, br):    
-        self.cropLabel.setImage(imgPart)
-
-
         img3 = cv2.resize(imgPart, (20,32))
         img4 = img3.astype(np.float32)
         
@@ -189,16 +191,16 @@ class MeterConfGUI(QMainWindow):
         resNum = "NaN" if res==10 else str(res)
         perc = round(100*output_data[0][res],2)
         
-        showPic = cv2.imwrite(f"validNum_{resNum}.jpg",img4)
+        #showPic = cv2.imwrite(f"validNum_{resNum}.jpg",img4)
         
         self.statBar.showMessage(f"{resNum} ({perc}%)")
         
         if self.currMaskItem != None:
-            self.maskItemDict[self.currMaskItem].setMaskImg(imgPart)
+            self.maskItemDict[self.currMaskItem].setMaskImg(img3)
             self.maskItemDict[self.currMaskItem].setMaskCoord(tl,br)
             self.maskItemDict[self.currMaskItem].setPredict(resNum,perc)
             self.maskItemDict[self.currMaskItem].setItemIsSet()
-            self.meterConf[self.currMaskItem] = (tl,br)
+            self.meterConf["imgMaskDesc"]["digMasks"][self.currMaskItem] = (tl,br)
         
     
     def saveConfig(self):
@@ -220,7 +222,7 @@ class MeterConfGUI(QMainWindow):
             
     def captureImage(self):
         try:
-            self.video = cv2.VideoCapture(self.meterConf["camUrl"])
+            self.video = cv2.VideoCapture(self.meterConf["cameraDesc"]["camUrl"])
             check, frame = self.video.read()
             self.video.release()
             self.imageLabel.setImage(frame)
@@ -230,6 +232,7 @@ class MeterConfGUI(QMainWindow):
     def _createMenu(self):
         menu = self.menuBar()#.addAction("&Exit", self.close)
         #menu.addAction("&Exit", self.close)
+        menu.setNativeMenuBar(False)
         menu.addAction("&Save config", self.saveConfig)
         #menu.addAction("&Read current state", self.close)
 

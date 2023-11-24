@@ -1,3 +1,7 @@
+QMainWindow {
+    background-color: grey;
+}
+
 QGroupBox {
 	background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                                       stop: 0 #E0E0E0, stop: 1 #FFFFFF);
@@ -5,12 +9,31 @@ QGroupBox {
     border-radius: 5px;
     margin-top: 1ex; 
 	font-size: 20px;
-	
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top center; 
     padding: 0 3px;  
+    color: rgb(34, 135, 64);
 }
 
+QLabel#tlblLbl, QLabel#predLbl {
+    font-size: 10px;
+    color: black;
+}
+
+QPushButton {
+    background-color: rgb(57, 46, 46); 
+    color: black;
+}
+
+QPushButton:pressed {
+    background-color: rgb(71, 71, 99); 
+    color: black;
+}
+
+QPushButton:toggled {
+    background-color: blue; 
+    color: black;
+}
