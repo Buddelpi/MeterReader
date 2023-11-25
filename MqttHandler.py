@@ -35,7 +35,7 @@ class MqttHandler():
             client.connect(self.brokerUrl, self.port)
         except:
             client = None
-            self.statBar.showMessage(f"Connection error to Mqtt server: {self.brokerUrl}")
+            print(f"Connection error to Mqtt server: {self.brokerUrl}")
 
         self.client = client
 

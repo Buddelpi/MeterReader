@@ -22,6 +22,7 @@ class ReaderHealthState(Enum):
     CNN_ERROR = 16
     PLAU_ERROR = 32
     CONF_SAVE_ERROR = 64
+    CONF_ERROR = 128
     
 
 def setError(errorType):
@@ -152,7 +153,7 @@ try:
     with codecs.open("MeterToolConf.json", 'r', 'utf-8') as jsf:
         meterConf = json.load(jsf)
 except:
-    raise BaseException("Cannot open configuration file!")
+    setError(ReaderHealthState.CONF_ERROR)
 
 mqttClient = MqttHandler(meterConf["mqttDesc"],
                         "gas_meter_reader",
@@ -161,13 +162,16 @@ mqttClient = MqttHandler(meterConf["mqttDesc"],
 
 
 # Load TFLite model and allocate tensors.
-cnnInterpreter = tf.lite.Interpreter(model_path="dig-cont_0600_s3.tflite")
-        
-# Get input and output tensors.
-modelInputDict = cnnInterpreter.get_input_details()
-modelOutputDict = cnnInterpreter.get_output_details()
-        
-cnnInterpreter.allocate_tensors()
+try:
+    cnnInterpreter = tf.lite.Interpreter(model_path="dig-cont_0600_s3.tflite")
+            
+    # Get input and output tensors.
+    modelInputDict = cnnInterpreter.get_input_details()
+    modelOutputDict = cnnInterpreter.get_output_details()
+            
+    cnnInterpreter.allocate_tensors()
+except:
+    setError(ReaderHealthState.CNN_ERROR)
 
 lastValue = meterConf["meterReaderDesc"]["initMeterVal"]
 firstRound = True

@@ -11,7 +11,7 @@
         "flashBright": 50,
         "flashTime": 5,
         "timeBtwRounds": 30,
-        "initMeterVal": 5271.961,
+        "initMeterVal": 5278.84,
         "singleStepThresh": 1
     },
     "mqttDesc": {
