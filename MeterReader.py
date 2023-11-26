@@ -112,9 +112,11 @@ def readMeter():
         setError(ReaderHealthState.PLAU_ERROR)
         print(f"Wrong value read ({sensor}), using last stored instead: {lastValue}")
         sensor = lastValue
+        delta = 0
         
     else:
         delError(ReaderHealthState.PLAU_ERROR)
+        delta = sensor - lastValue
         lastValue = sensor
         firstRound = False
         meterConf["meterReaderDesc"]["initMeterVal"] = lastValue
@@ -129,7 +131,7 @@ def readMeter():
     print("Health state: ", readerHealth)
 
     topic = meterConf["mqttDesc"]["topics"]["meterReport"]
-    msg = json.dumps({"sensorValue":sensor, "sensorHealth": readerHealth})
+    msg = json.dumps({"sensorValue":sensor, "delta": delta, "sensorHealth": readerHealth})
     resSucc, resMsg  = mqttClient.publish2opic(topic, msg)
     delError(ReaderHealthState.CONF_SAVE_ERROR)
     print(resMsg)
