@@ -1,4 +1,14 @@
 
+import logging
+
+logger = logging.getLogger("meter_reader")
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler("meter_reader_log.log")
+fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s: %(message)s")
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
 import sys
 import cv2
 import tensorflow as tf
@@ -25,9 +35,10 @@ class ReaderHealthState(Enum):
     CONF_ERROR = 128
     
 
-def setError(errorType):
+def setError(errorType, msg=""):
     global readerHealth
     readerHealth |= errorType.value
+    logger.warning(f"{str(errorType)} - {msg}")
 
 def delError(errorType):
     global readerHealth
@@ -57,7 +68,7 @@ def readMeter():
     print(resMsg)
     
     if not resSucc:
-        setError(ReaderHealthState.MQTT_ERROR)
+        setError(ReaderHealthState.MQTT_ERROR, resMsg)
         return False
     else:
         delError(ReaderHealthState.MQTT_ERROR)
@@ -69,15 +80,16 @@ def readMeter():
         check, frame = video.read()
         video.release()
         if type(frame) == type(None):
-            setError(ReaderHealthState.VIDEO_ERROR)
+            setError(ReaderHealthState.VIDEO_ERROR, "empty frame")
         else:
             delError(ReaderHealthState.VIDEO_ERROR)
     except:
-        print("ERROR: could not connect to camera!")
-        setError(ReaderHealthState.VIDEO_ERROR)
+        msg = "ERROR: could not connect to camera!"
+        print(msg)
+        setError(ReaderHealthState.VIDEO_ERROR, msg)
 
     if not meterConf["imgMaskDesc"]["digMasks"]:
-        setError(ReaderHealthState.SETTING_ERROR)
+        setError(ReaderHealthState.SETTING_ERROR, "Image masks haven't been set")
     else:
         delError(ReaderHealthState.SETTING_ERROR)
 
@@ -102,15 +114,16 @@ def readMeter():
                 delError(ReaderHealthState.CNN_ERROR)
             except:
                 sensor = lastValue
-                setError(ReaderHealthState.CNN_ERROR)
+                setError(ReaderHealthState.CNN_ERROR, "Error with getting tensor!")
     else:
         sensor = lastValue      
 
     rangeTh = meterConf["meterReaderDesc"]["singleStepThresh"]
 
     if (sensor < lastValue or (lastValue+rangeTh) < sensor) and not firstRound:
-        setError(ReaderHealthState.PLAU_ERROR)
-        print(f"Wrong value read ({sensor}), using last stored instead: {lastValue}")
+        msg = f"Wrong value read ({sensor}), using last stored instead: {lastValue}"
+        setError(ReaderHealthState.PLAU_ERROR, msg)
+        print(msg)
         sensor = lastValue
         delta = 0
         
@@ -136,7 +149,7 @@ def readMeter():
     delError(ReaderHealthState.CONF_SAVE_ERROR)
     print(resMsg)
     if not resSucc:
-        setError(ReaderHealthState.MQTT_ERROR)
+        setError(ReaderHealthState.MQTT_ERROR, resMsg)
     else:
         delError(ReaderHealthState.MQTT_ERROR)
 
@@ -145,7 +158,7 @@ def readMeter():
     resSucc, resMsg  = mqttClient.publish2opic(topic, msg)
     print(resMsg)
     if not resSucc:
-        setError(ReaderHealthState.MQTT_ERROR)
+        setError(ReaderHealthState.MQTT_ERROR, resMsg)
     else:
         delError(ReaderHealthState.MQTT_ERROR)
 
@@ -155,7 +168,9 @@ try:
     with codecs.open("MeterToolConf.json", 'r', 'utf-8') as jsf:
         meterConf = json.load(jsf)
 except:
-    setError(ReaderHealthState.CONF_ERROR)
+    msg = "Could not open configuration file!"
+    setError(ReaderHealthState.CONF_ERROR, msg)
+    print(msg)
 
 mqttClient = MqttHandler(meterConf["mqttDesc"],
                         "gas_meter_reader",
@@ -173,7 +188,9 @@ try:
             
     cnnInterpreter.allocate_tensors()
 except:
-    setError(ReaderHealthState.CNN_ERROR)
+    msg = "Could not set up CNN interpreter!"
+    setError(ReaderHealthState.CNN_ERROR, msg)
+    print(msg)
 
 lastValue = meterConf["meterReaderDesc"]["initMeterVal"]
 firstRound = True

@@ -11,8 +11,8 @@
         "flashBright": 50,
         "flashTime": 5,
         "timeBtwRounds": 30,
-        "initMeterVal": 5278.84,
-        "singleStepThresh": 1
+        "initMeterVal": 5296.171,
+        "singleStepThresh": 0.1
     },
     "mqttDesc": {
         "brokerUrl": "192.168.0.50",
