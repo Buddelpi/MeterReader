@@ -88,6 +88,9 @@ class MaskDigitItem(QGroupBox):
         self.tlLbl.setText(f"TL{tl}")
         self.blLbl.setText(f"BL{br}")
     
+    def getMaskCoord(self):
+        return self.maskTopLeft, self.maskBotRight
+    
     def setPredict(self, num, perc):
         self.predLbl.setText(f"{num} ({perc}%)")
         

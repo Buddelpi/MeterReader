@@ -44,13 +44,24 @@ class ImageManLabel(QLabel):
         qt_img = self.convert_cv_qt(frame)
         self.setPixmap(qt_img)
     
-    def drawRect(self, tl, br):
+    def drawRect(self, tl, br, putText=None):
         self.currImage = deepcopy(self.savedImage)
         cv2.rectangle(self.currImage,tl,br,(0,255,0),2)
+
+        if type(putText) != type(None):
+            self.currImage = cv2.putText(self.currImage, str(putText), (tl[0], br[1]), cv2.FONT_ITALIC, 1, (1,255,0), 2, cv2.LINE_AA)
+
         self.setImage()
     
+    def resetRect(self, tl, br):
+
+        if tl[0]>0 and br[0]>0 and tl[1]>0 and br[1]>0:
+            self.currImage[tl[1]-2:br[1]+2, tl[0]-2:br[0]+2] = self.origImage[tl[1]-2:br[1]+2, tl[0]-2:br[0]+2]
+            self.setImage()
+
     def saveImage(self):
         self.savedImage = deepcopy(self.currImage)
+        
      
     def eventFilter(self, obj, event):
         if not self.inhibitDraw:
@@ -78,7 +89,6 @@ class ImageManLabel(QLabel):
                     bigRecTl = (self.recTopLeft[0]-colShift, self.recTopLeft[1]-rowShift)
                     bigRectBr = (self.recBotRight[0]+colShift, self.recBotRight[1]+rowShift)
                     
-                    self.drawRect(bigRecTl, bigRectBr)
                     self.onRectCb(self.origImage[bigRecTl[1]:bigRectBr[1], bigRecTl[0]:bigRectBr[0]], bigRecTl, bigRectBr)
                     
         return super().eventFilter(obj, event)

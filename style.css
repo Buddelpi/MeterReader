@@ -15,7 +15,7 @@ QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top center; 
     padding: 0 3px;  
-    color: rgb(34, 135, 64);
+    color: rgb(5, 35, 64);
 }
 
 QLabel#tlblLbl, QLabel#predLbl {
@@ -24,7 +24,7 @@ QLabel#tlblLbl, QLabel#predLbl {
 }
 
 QPushButton {
-    background-color: rgb(57, 46, 46); 
+    background-color: rgb(192, 187, 187)07); 
     color: black;
 }
 
@@ -33,7 +33,7 @@ QPushButton:pressed {
     color: black;
 }
 
-QPushButton:toggled {
+QPushButton:checked {
     background-color: blue; 
     color: black;
 }

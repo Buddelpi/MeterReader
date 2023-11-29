@@ -138,11 +138,11 @@ class MeterConfGUI(QMainWindow):
         fractMaskLay.addStretch()
         
         for num in range(cntWhoDig-1, -1, -1):
-            self.maskItemDict[num] = MaskDigitItem(num, self.handleMaskItemEvent)
-            wholesMaskLay.addWidget(self.maskItemDict[num])
+            self.maskItemDict[str(num)] = MaskDigitItem(num, self.handleMaskItemEvent)
+            wholesMaskLay.addWidget(self.maskItemDict[str(num)])
         for num in range(-1, (-1*cntFracDig)-1, -1):
-            self.maskItemDict[num] = MaskDigitItem(num, self.handleMaskItemEvent)
-            fractMaskLay.addWidget(self.maskItemDict[num])
+            self.maskItemDict[str(num)] = MaskDigitItem(num, self.handleMaskItemEvent)
+            fractMaskLay.addWidget(self.maskItemDict[str(num)])
         
         maskLay.addLayout(wholesMaskLay)
         maskLay.addLayout(fractMaskLay)
@@ -158,7 +158,7 @@ class MeterConfGUI(QMainWindow):
     
     def handleMaskItemEvent(self, itemPower, atSave=False):
         for key in self.maskItemDict.keys():
-            if key != itemPower:
+            if key != str(itemPower):
                 self.maskItemDict[key].dislightItem()
             else:
                 if atSave:
@@ -166,7 +166,9 @@ class MeterConfGUI(QMainWindow):
                     self.imageLabel.saveImage()
                     self.imageLabel.setInhibit(True)
                 else:
-                    self.currMaskItem = itemPower
+                    self.currMaskItem = str(itemPower)
+                    self.imageLabel.resetRect(*self.maskItemDict[self.currMaskItem].getMaskCoord())
+                    self.imageLabel.saveImage()
                     self.imageLabel.setInhibit(False)
      
     
@@ -176,27 +178,15 @@ class MeterConfGUI(QMainWindow):
         self._publishFLashMqtt()
         
     
-    def onRectReceived(self, imgPart, tl, br):    
-        img3 = cv2.resize(imgPart, (20,32))
-        img4 = img3.astype(np.float32)
-        
-        self.cnnInterpreter.set_tensor(self.modelInputDict[0]['index'], [img4])
-
-        self.cnnInterpreter.invoke()
-
-        output_data = self.cnnInterpreter.get_tensor(self.modelOutputDict[0]['index'])
-        
-        res = np.argmax(output_data)
-        
-        resNum = "NaN" if res==10 else str(res)
-        perc = round(100*output_data[0][res],2)
-        
-        #showPic = cv2.imwrite(f"validNum_{resNum}.jpg",img4)
-        
+    def onRectReceived(self, img, tl, br):    
+        img = cv2.resize(img, (20,32))
+        resNum, perc = self._cnnPredict(img)
         self.statBar.showMessage(f"{resNum} ({perc}%)")
-        
+
+        self.imageLabel.drawRect(tl, br, self.maskItemDict[self.currMaskItem].power) 
+
         if self.currMaskItem != None:
-            self.maskItemDict[self.currMaskItem].setMaskImg(img3)
+            self.maskItemDict[self.currMaskItem].setMaskImg(img)
             self.maskItemDict[self.currMaskItem].setMaskCoord(tl,br)
             self.maskItemDict[self.currMaskItem].setPredict(resNum,perc)
             self.maskItemDict[self.currMaskItem].setItemIsSet()
@@ -226,15 +216,30 @@ class MeterConfGUI(QMainWindow):
             check, frame = self.video.read()
             self.video.release()
             self.imageLabel.setImage(frame)
+
+            for i, (powa, rect) in enumerate(self.meterConf["imgMaskDesc"]["digMasks"].items()):
+
+                maskImg = frame[rect[0][1]:rect[1][1], rect[0][0]:rect[1][0]]
+                maskImg = cv2.resize(maskImg, (20,32))
+
+                self.maskItemDict[powa].setMaskImg(maskImg)
+                self.maskItemDict[powa].setMaskCoord(*rect)
+                self.maskItemDict[powa].setPredict(*self._cnnPredict(maskImg))
+                self.maskItemDict[powa].setItemIsSet()
+                self.maskItemDict[powa].dislightItem()
+
+                self.imageLabel.drawRect(*rect, powa)
+                self.imageLabel.saveImage()
+
+
+
         except:
             self.statBar.showMessage("ERROR: could not connect to camera!")
     
     def _createMenu(self):
-        menu = self.menuBar()#.addAction("&Exit", self.close)
-        #menu.addAction("&Exit", self.close)
+        menu = self.menuBar()
         menu.setNativeMenuBar(False)
         menu.addAction("&Save config", self.saveConfig)
-        #menu.addAction("&Read current state", self.close)
 
     def _createToolBar(self):
         tools = QToolBar()
@@ -256,6 +261,22 @@ class MeterConfGUI(QMainWindow):
         self.modelOutputDict = self.cnnInterpreter.get_output_details()
         
         self.cnnInterpreter.allocate_tensors()
+
+    def _cnnPredict(self,img):
+        img = img.astype(np.float32)
+        
+        self.cnnInterpreter.set_tensor(self.modelInputDict[0]['index'], [img])
+
+        self.cnnInterpreter.invoke()
+
+        output_data = self.cnnInterpreter.get_tensor(self.modelOutputDict[0]['index'])
+        
+        res = np.argmax(output_data)
+        
+        resNum = "NaN" if res==10 else str(res)
+        perc = round(100*output_data[0][res],2)
+
+        return resNum, perc
 
 
 def except_hook(cls, exception, traceback):

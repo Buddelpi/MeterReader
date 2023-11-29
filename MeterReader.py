@@ -120,6 +120,7 @@ def readMeter():
 
     rangeTh = meterConf["meterReaderDesc"]["singleStepThresh"]
 
+    # Verify sensor value
     if (sensor < lastValue or (lastValue+rangeTh) < sensor) and not firstRound:
         msg = f"Wrong value read ({sensor}), using last stored instead: {lastValue}"
         setError(ReaderHealthState.PLAU_ERROR, msg)
@@ -162,8 +163,15 @@ def readMeter():
     else:
         delError(ReaderHealthState.MQTT_ERROR)
 
+#-------------------------------------------------------------------
+# Start of script
+#-------------------------------------------------------------------
 
+# Initalize global variables
 meterConf = {}
+readerHealth = ReaderHealthState.OK.value
+
+
 try:
     with codecs.open("MeterToolConf.json", 'r', 'utf-8') as jsf:
         meterConf = json.load(jsf)
@@ -171,6 +179,9 @@ except:
     msg = "Could not open configuration file!"
     setError(ReaderHealthState.CONF_ERROR, msg)
     print(msg)
+
+lastValue = meterConf["meterReaderDesc"]["initMeterVal"]
+firstRound = meterConf["meterReaderDesc"]["ignoreFirstRoundPlauErr"]
 
 mqttClient = MqttHandler(meterConf["mqttDesc"],
                         "gas_meter_reader",
@@ -192,9 +203,6 @@ except:
     setError(ReaderHealthState.CNN_ERROR, msg)
     print(msg)
 
-lastValue = meterConf["meterReaderDesc"]["initMeterVal"]
-firstRound = True
-readerHealth = ReaderHealthState.OK.value
 
 while True:
     readMeter()
