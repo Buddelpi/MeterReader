@@ -191,7 +191,7 @@ mqttClient = MqttHandler(meterConf["mqttDesc"],
 
 # Load TFLite model and allocate tensors.
 try:
-    cnnInterpreter = tf.lite.Interpreter(model_path="dig-cont_0600_s3.tflite")
+    cnnInterpreter = tf.lite.Interpreter(model_path="DigitNumberModel.tflite")
             
     # Get input and output tensors.
     modelInputDict = cnnInterpreter.get_input_details()
