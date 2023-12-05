@@ -79,6 +79,13 @@ def readMeter():
         video = cv2.VideoCapture(meterConf["cameraDesc"]["camUrl"])
         check, frame = video.read()
         video.release()
+        h, w = frame.shape[:2] 
+        rotM = cv2.getRotationMatrix2D(center=(w/2, h/2), 
+                                        angle=meterConf["meterReaderDesc"]["imgRot"], 
+                                        scale=1) 
+        frame = cv2.warpAffine( src=frame, M=rotM, dsize=(w, h))
+
+
         if type(frame) == type(None):
             setError(ReaderHealthState.VIDEO_ERROR, "empty frame")
         else:

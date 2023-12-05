@@ -8,6 +8,7 @@ from paho.mqtt import client as mqtt_client
 import json
 import codecs
 from pathlib import Path
+from copy import deepcopy
 
 from ImageManLabel import ImageManLabel
 from ImageMaskPicker import MaskDigitItem
@@ -215,6 +216,14 @@ class MeterConfGUI(QMainWindow):
             self.video = cv2.VideoCapture(self.meterConf["cameraDesc"]["camUrl"])
             check, frame = self.video.read()
             self.video.release()
+            
+            h, w = frame.shape[:2] 
+            
+            rotM = cv2.getRotationMatrix2D(center=(w/2, h/2), 
+                                                    angle=self.meterConf["meterReaderDesc"]["imgRot"], 
+                                                    scale=1) 
+            frame = cv2.warpAffine( src=frame, M=rotM, dsize=(w, h))
+            #frame = self.drawGrid(frame)
             self.imageLabel.setImage(frame)
 
             for i, (powa, rect) in enumerate(self.meterConf["imgMaskDesc"]["digMasks"].items()):
@@ -231,10 +240,28 @@ class MeterConfGUI(QMainWindow):
                 self.imageLabel.drawRect(*rect, powa)
                 self.imageLabel.saveImage()
 
-
+            
 
         except:
             self.statBar.showMessage("ERROR: could not connect to camera!")
+    
+    def drawGrid(self, inFrame):
+        outFrame = deepcopy(inFrame)
+        h, w = inFrame.shape[:2]
+
+        gran = 12
+
+        hCoords = range(int(h/gran), h, int(h/gran))
+        wCoords = range(int(w/gran), w, int(w/gran))
+
+        # horizontal lines
+        for hc in hCoords:
+            outFrame = cv2.line(outFrame, (0, hc), (w,hc), (0,128,0), 1)
+        # vertical lines
+        for wc in wCoords:
+            outFrame = cv2.line(outFrame, (wc, 0), (wc,h), (0,128,0), 1)
+
+        return outFrame
     
     def _createMenu(self):
         menu = self.menuBar()
