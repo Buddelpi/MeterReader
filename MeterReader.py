@@ -178,6 +178,7 @@ def readMeter():
 meterConf = {}
 readerHealth = ReaderHealthState.OK.value
 
+logger.info("----------------------Starting script----------------------")
 
 try:
     with codecs.open("MeterToolConf.json", 'r', 'utf-8') as jsf:
