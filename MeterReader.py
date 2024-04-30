@@ -2,9 +2,9 @@
 import logging
 
 logger = logging.getLogger("meter_reader")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 fh = logging.FileHandler("meter_reader_log.log")
-fh.setLevel(logging.DEBUG)
+fh.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s: %(message)s")
 fh.setFormatter(formatter)
 logger.addHandler(fh)
