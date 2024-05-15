@@ -9,7 +9,7 @@
     "meterReaderDesc": {
         "flashBright": 50,
         "flashTime": 5,
-        "timeBtwRounds": 30,
+        "timeBtwRounds": 120,
         "initMeterVal": 5588.512,
         "singleStepThresh": 0.1,
         "imgRot": -1,
