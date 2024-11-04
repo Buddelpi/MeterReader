@@ -32,7 +32,10 @@ class MqttHandler():
         client.on_connect = on_connect
         client.on_disconnect = on_disconnect
         try:
-            client.connect(self.brokerUrl, self.port)
+            # Set a keepalive interval (60 seconds)
+            client.connect(self.brokerUrl, self.port, keepalive=60)
+            # Start a background thread to maintain the connection
+            client.loop_start()
         except:
             client = None
             print(f"Connection error to Mqtt server: {self.brokerUrl}")
