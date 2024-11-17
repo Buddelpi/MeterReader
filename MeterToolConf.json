@@ -10,11 +10,12 @@
         "flashBright": 50,
         "flashTime": 5,
         "timeBtwRounds": 120,
-        "initMeterVal": 6460.731,
+        "initMeterVal": 6548.519,
         "singleStepThresh": 0.1,
         "imgRot": -1,
         "gridGranularity": 12,
-        "ignoreFirstRoundPlauErr": true
+        "ignoreFirstRoundPlauErr": true,
+        "errStreakResetThresh": 10
     },
     "mqttDesc": {
         "brokerUrl": "192.168.0.50",
