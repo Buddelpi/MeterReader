@@ -44,7 +44,6 @@ class MeterReader():
     def setError(self, errorType, msg=""):  
         self.readerHealth |= errorType.value
         logger.warning(f"{str(errorType)} - {msg}")
-        self.errorStreak += 1
 
     def delError(self, errorType):
         # First check if error was set before, because delError is called periodically, nit just at errors
@@ -52,14 +51,17 @@ class MeterReader():
             self.readerHealth &= ~errorType.value
             logger.info(f"{str(errorType)} has been healed.")
 
-            if self.checkError():
-                self.errorStreak = 0
-
 
     def checkError(self):
         return self.readerHealth == ReaderHealthState.OK.value
     
     def checkErrStreak(self):
+
+        if self.checkError():
+            self.errorStreak += 1
+        else:
+            self.errorStreak = 0
+            
         if self.meterConf["meterReaderDesc"]["errStreakResetThresh"] < self.errorStreak:
             self.setUpMeter(isRestart=True)
 
