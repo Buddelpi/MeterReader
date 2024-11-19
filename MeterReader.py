@@ -57,7 +57,7 @@ class MeterReader():
     
     def checkErrStreak(self):
 
-        if self.checkError():
+        if not self.checkError():
             self.errorStreak += 1
         else:
             self.errorStreak = 0
