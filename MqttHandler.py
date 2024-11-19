@@ -23,7 +23,7 @@ class MqttHandler():
         
         def on_disconnect(client, userdata, rc):
             if rc != 0:
-                if self.funcOnDicconnect:
+                if self.funcOnDisconnect:
                     self.funcOnDisconnect()
                 self.client = self.connectMqtt()
                 
