@@ -145,13 +145,18 @@ class MeterReader():
         rangeTh = self.meterConf["meterReaderDesc"]["singleStepThresh"]
 
         # Verify sensor value
-        if (sensor < self.lastValue or (self.lastValue+rangeTh) < sensor) and not self.firstRound:
+        if sensor < self.lastValue: 
+            msg = f"Sensor value must be decreasing. Value:({sensor}), using last stored instead: {self.lastValue}"
+            self.setError(ReaderHealthState.PLAU_ERROR, msg)
+            print(msg)
+            sensor = self.lastValue
+            delta = 0
+        elif (self.lastValue+rangeTh) < sensor and not self.firstRound:
             msg = f"Wrong value read ({sensor}), using last stored instead: {self.lastValue}"
             self.setError(ReaderHealthState.PLAU_ERROR, msg)
             print(msg)
             sensor = self.lastValue
             delta = 0
-            
         else:
             self.delError(ReaderHealthState.PLAU_ERROR)
             delta = sensor - self.lastValue
