@@ -4,13 +4,13 @@
             640,
             480
         ],
-        "camUrl": "http:/192.168.0.218:8081"
+        "camUrl": "http:/192.168.0.61:8081"
     },
     "meterReaderDesc": {
         "flashBright": 50,
         "flashTime": 5,
         "timeBtwRounds": 120,
-        "initMeterVal": 6548.519,
+        "initMeterVal": 6688.343,
         "singleStepThresh": 0.1,
         "imgRot": -1,
         "gridGranularity": 12,
@@ -25,7 +25,9 @@
         "topics": {
             "flashOn": "gasmeter/flashlight/on",
             "flashOff": "gasmeter/flashlight/off",
-            "meterReport": "gasmeter/report"
+            "meterReport": "gasmeter/report",
+            "currValReq": "gasmeter/current_value_request",
+            "currValResp": "gasmeter/current_value_response"
         }
     },
     "imgMaskDesc": {

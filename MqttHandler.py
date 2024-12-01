@@ -12,25 +12,33 @@ class MqttHandler():
         self.name = name
         self.funcOnConnect = funcOnConnect
         self.funcOnDisconnect = funcOnDisconnect
+        self.client = None
 
         self.connectMqtt()
+
+    def subscribeTotopic(self, topic):
+        if self.client is not None:
+            self.client.subscribe(topic)
 
     def connectMqtt(self):
         def on_connect(client, userdata, flags, rc):
             if self.funcOnConnect:
                 self.funcOnConnect(rc)
-            
         
         def on_disconnect(client, userdata, rc):
             if rc != 0:
                 if self.funcOnDisconnect:
                     self.funcOnDisconnect()
                 self.client = self.connectMqtt()
-                
+
+        def on_message(client, userdata, msg):
+            print(f"Received message: {msg.payload.decode()} from topic: {msg.topic}")
+
         client = mqtt_client.Client(f"mqtt_client_{self.name}_{random.randint(1000,9999)}")
         client.username_pw_set(self.user, self.passw)
         client.on_connect = on_connect
         client.on_disconnect = on_disconnect
+        client.on_message = on_message
         try:
             # Set a keepalive interval (60 seconds)
             client.connect(self.brokerUrl, self.port, keepalive=60)

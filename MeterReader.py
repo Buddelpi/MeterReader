@@ -64,10 +64,13 @@ class MeterReader():
             
         if self.meterConf["meterReaderDesc"]["errStreakResetThresh"] < self.errorStreak:
             self.setUpMeter(isRestart=True)
+            self.errorStreak = 0
+            self.readerHealth = ReaderHealthState.OK.value
 
     def onMqttConnect(self, rc):
         if rc == 0:
             print("Connected to MQTT Broker!")
+            self.mqttClient.subscribeTotopic(self.meterConf["mqttDesc"]["topics"]["currValResp"])
             self.delError(ReaderHealthState.MQTT_ERROR)
         else:
             msg = f"Failed to connect, return code: {rc}.\n"
@@ -214,6 +217,19 @@ class MeterReader():
                                 "gas_meter_reader",
                                 self.onMqttConnect,
                                 self.onMqttDisConnect)
+
+
+        topic = self.meterConf["mqttDesc"]["topics"]["currValReq"]
+        msg = json.dumps({})
+
+        resSucc, resMsg  = self.mqttClient.publish2opic(topic, msg)
+        print(resMsg)
+        
+        if not resSucc:
+            self.setError(ReaderHealthState.MQTT_ERROR, resMsg)
+            return False
+        else:
+            self.delError(ReaderHealthState.MQTT_ERROR)
 
 
         # Load TFLite model and allocate tensors.
