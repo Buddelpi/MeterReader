@@ -13,12 +13,14 @@ class MqttHandler():
         self.funcOnConnect = funcOnConnect
         self.funcOnDisconnect = funcOnDisconnect
         self.client = None
+        self.subscribeDict = {}
 
         self.connectMqtt()
 
-    def subscribeTotopic(self, topic):
+    def subscribeTotopic(self, topic, callback=None):
         if self.client is not None:
             self.client.subscribe(topic)
+            self.subscribeDict[topic] = callback
 
     def connectMqtt(self):
         def on_connect(client, userdata, flags, rc):
@@ -33,6 +35,9 @@ class MqttHandler():
 
         def on_message(client, userdata, msg):
             print(f"Received message: {msg.payload.decode()} from topic: {msg.topic}")
+            if msg.topic in self.subscribeDict.keys() and self.subscribeDict[msg.topic] is not None:
+                self.subscribeDict[msg.topic](msg.payload.decode())
+                
 
         client = mqtt_client.Client(f"mqtt_client_{self.name}_{random.randint(1000,9999)}")
         client.username_pw_set(self.user, self.passw)

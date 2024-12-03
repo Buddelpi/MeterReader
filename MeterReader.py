@@ -39,6 +39,9 @@ class MeterReader():
         self.readerHealth = ReaderHealthState.OK.value
         self.errorStreak = 0
 
+        self.delta = 0
+        self.lastValue = 0
+
         self.setUpMeter()
 
     def setError(self, errorType, msg=""):  
@@ -70,7 +73,7 @@ class MeterReader():
     def onMqttConnect(self, rc):
         if rc == 0:
             print("Connected to MQTT Broker!")
-            self.mqttClient.subscribeTotopic(self.meterConf["mqttDesc"]["topics"]["currValResp"])
+            self.mqttClient.subscribeTotopic(self.meterConf["mqttDesc"]["topics"]["currValResp"], self.receiveValueFromHa)
             self.delError(ReaderHealthState.MQTT_ERROR)
         else:
             msg = f"Failed to connect, return code: {rc}.\n"
@@ -80,7 +83,13 @@ class MeterReader():
     def onMqttDisConnect(self):
         print("Unexpected MQTT Broker disconnection! Trying to reconnect...")
 
+    def receiveValueFromHa(self, value):
+        if value is not None:
+            print("Received gas value from Home Assisstant:", str(value), ". From type:", type(value))
+
     def readMeter(self):
+        isSuccess = True # Variable to follow read success throughout a cycle
+
         topic = self.meterConf["mqttDesc"]["topics"]["flashOn"]
         msg = json.dumps({"bright":self.meterConf["meterReaderDesc"]["flashBright"]/100})
 
@@ -89,39 +98,43 @@ class MeterReader():
         
         if not resSucc:
             self.setError(ReaderHealthState.MQTT_ERROR, resMsg)
-            return False
+            isSuccess = False
         else:
             self.delError(ReaderHealthState.MQTT_ERROR)
         
         time.sleep(self.meterConf["meterReaderDesc"]["flashTime"])
 
-        try:
-            video = cv2.VideoCapture(self.meterConf["cameraDesc"]["camUrl"])
-            check, frame = video.read()
-            video.release()
-            h, w = frame.shape[:2] 
-            rotM = cv2.getRotationMatrix2D(center=(w/2, h/2), 
-                                            angle=self.meterConf["meterReaderDesc"]["imgRot"], 
-                                            scale=1) 
-            frame = cv2.warpAffine( src=frame, M=rotM, dsize=(w, h))
+        if isSuccess:
+            try:
+                video = cv2.VideoCapture(self.meterConf["cameraDesc"]["camUrl"])
+                check, frame = video.read()
+                video.release()
+                h, w = frame.shape[:2] 
+                rotM = cv2.getRotationMatrix2D(center=(w/2, h/2), 
+                                                angle=self.meterConf["meterReaderDesc"]["imgRot"], 
+                                                scale=1) 
+                frame = cv2.warpAffine( src=frame, M=rotM, dsize=(w, h))
 
 
-            if type(frame) == type(None):
-                self.setError(ReaderHealthState.VIDEO_ERROR, "empty frame")
-            else:
-                self.delError(ReaderHealthState.VIDEO_ERROR)
-        except:
-            msg = "ERROR: could not connect to camera!"
-            print(msg)
-            self.setError(ReaderHealthState.VIDEO_ERROR, msg)
+                if type(frame) == type(None):
+                    self.setError(ReaderHealthState.VIDEO_ERROR, "empty frame")
+                else:
+                    self.delError(ReaderHealthState.VIDEO_ERROR)
+            except:
+                isSuccess = False
+                msg = "ERROR: could not connect to camera!"
+                print(msg)
+                self.setError(ReaderHealthState.VIDEO_ERROR, msg)
 
         if not self.meterConf["imgMaskDesc"]["digMasks"]:
             self.setError(ReaderHealthState.SETTING_ERROR, "Image masks haven't been set")
+            isSuccess = False
         else:
             self.delError(ReaderHealthState.SETTING_ERROR)
+            
 
-        sensor = 0
-        if  self.checkError():
+        if  isSuccess:
+            sensor = 0
             for i, (powa, rect) in enumerate(self.meterConf["imgMaskDesc"]["digMasks"].items()):
 
                 maskImg = frame[rect[0][1]:rect[1][1], rect[0][0]:rect[1][0]]
@@ -142,42 +155,36 @@ class MeterReader():
                 except:
                     sensor = self.lastValue
                     self.setError(ReaderHealthState.CNN_ERROR, "Error with getting tensor!")
-        else:
-            sensor = self.lastValue      
+     
+            rangeTh = self.meterConf["meterReaderDesc"]["singleStepThresh"]
 
-        rangeTh = self.meterConf["meterReaderDesc"]["singleStepThresh"]
+            # Verify sensor value
+            if sensor < self.lastValue: 
+                msg = f"Sensor value must be decreasing. Value:({sensor}), using last stored instead: {self.lastValue}"
+                self.setError(ReaderHealthState.PLAU_ERROR, msg)
+                print(msg)
+            elif (self.lastValue+rangeTh) < sensor and not self.firstRound:
+                msg = f"Value read ({sensor}) is not plausible as change is larger than the limit: ({rangeTh}) , using last stored instead: {self.lastValue}"
+                self.setError(ReaderHealthState.PLAU_ERROR, msg)
+                print(msg)
+            else:
+                self.delError(ReaderHealthState.PLAU_ERROR)
+                self.delta = sensor - self.lastValue
+                self.lastValue = sensor
+                self.firstRound = False
+                self.meterConf["meterReaderDesc"]["initMeterVal"] = self.lastValue
+                try:
+                    with open("MeterToolConf.json", 'w') as f:
+                        json.dump(self.meterConf, f, indent=4)
 
-        # Verify sensor value
-        if sensor < self.lastValue: 
-            msg = f"Sensor value must be decreasing. Value:({sensor}), using last stored instead: {self.lastValue}"
-            self.setError(ReaderHealthState.PLAU_ERROR, msg)
-            print(msg)
-            sensor = self.lastValue
-            delta = 0
-        elif (self.lastValue+rangeTh) < sensor and not self.firstRound:
-            msg = f"Wrong value read ({sensor}), using last stored instead: {self.lastValue}"
-            self.setError(ReaderHealthState.PLAU_ERROR, msg)
-            print(msg)
-            sensor = self.lastValue
-            delta = 0
-        else:
-            self.delError(ReaderHealthState.PLAU_ERROR)
-            delta = sensor - self.lastValue
-            self.lastValue = sensor
-            self.firstRound = False
-            self.meterConf["meterReaderDesc"]["initMeterVal"] = self.lastValue
-            try:
-                with open("MeterToolConf.json", 'w') as f:
-                    json.dump(self.meterConf, f, indent=4)
+                except:
+                    self.setError(ReaderHealthState.CONF_SAVE_ERROR)
 
-            except:
-                self.setError(ReaderHealthState.CONF_SAVE_ERROR)
-
-        print("Gas usage: ", sensor, "m3")
+        print("Gas usage: ", self.lastValue, "m3")
         print("Health state: ", self.readerHealth)
 
         topic = self.meterConf["mqttDesc"]["topics"]["meterReport"]
-        msg = json.dumps({"sensorValue":sensor, "delta": delta, "sensorHealth": self.readerHealth})
+        msg = json.dumps({"sensorValue":self.lastValue, "delta": self.delta, "sensorHealth": self.readerHealth})
         resSucc, resMsg  = self.mqttClient.publish2opic(topic, msg)
         self.delError(ReaderHealthState.CONF_SAVE_ERROR)
         print(resMsg)
