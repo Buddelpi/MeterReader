@@ -4,7 +4,7 @@
             640,
             480
         ],
-        "camUrl": "http:/192.168.0.61:8081"
+        "camUrl": "http:/192.168.0.32:8081"
     },
     "meterReaderDesc": {
         "flashBright": 50,
