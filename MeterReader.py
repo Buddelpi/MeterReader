@@ -29,6 +29,7 @@ class ReaderHealthState(Enum):
     PLAU_ERROR = 32
     CONF_SAVE_ERROR = 64
     CONF_ERROR = 128
+    INF_LOW_PROB = 256
 
 
 class MeterReader():
@@ -147,6 +148,15 @@ class MeterReader():
                     self.cnnInterpreter.invoke()
 
                     output_data = self.cnnInterpreter.get_tensor(self.modelOutputDict[0]['index'])
+                    
+                    prob = np.max(output_data)
+                    if prob < self.meterConf["meterReaderDesc"]["minInferenceProb"]:
+                        self.setError(ReaderHealthState.INF_LOW_PROB, f"Low probability of digit detection: {prob}, digit: {i}.")
+                        sensor = self.lastValue
+                        break
+                    else:
+                        self.delError(ReaderHealthState.INF_LOW_PROB)
+
                     res = np.argmax(output_data)
         
                     sensor += res * pow(10,int(powa))
