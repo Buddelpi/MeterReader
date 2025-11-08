@@ -1,5 +1,6 @@
 meter_reader_log.log
 .DS_Store
-__pycache__/ImageManLabel.cpython-311.pyc
-__pycache__/ImageMaskPicker.cpython-311.pyc
-__pycache__/MqttHandler.cpython-311.pyc
+.venv/
+__pycache__/
+*.pyc
+instance/
